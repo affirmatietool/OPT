@@ -1,0 +1,15 @@
+{
+  "name": "opt-api",
+  "version": "1.0.0",
+  "description": "OPT 2.0 API met ChatGPT-4o",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.5.0",
+    "dotenv": "^16.3.1"
+  }
+}
