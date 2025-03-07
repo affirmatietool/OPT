@@ -38,10 +38,10 @@ app.post("/api/chat", async (req, res) => {
         let dynamicIntro = "";
         switch (session.focus_area) {
             case "fysiek":
-                dynamicIntro = "Dat klinkt vervelend. Ik begrijp dat fysieke klachten je flink kunnen belemmeren. Kun je me meer vertellen over wat je ervaart?";
+                dynamicIntro = "Ik begrijp dat nekklachten vervelend kunnen zijn. Kun je me vertellen hoe lang je er al last van hebt?";
                 break;
             case "mentaal":
-                dynamicIntro = "Ik hoor je. Mentale uitdagingen kunnen zwaar zijn. Wat is op dit moment je grootste mentale obstakel?";
+                dynamicIntro = "Mentale uitdagingen kunnen zwaar zijn. Wat is op dit moment je grootste mentale obstakel?";
                 break;
             case "spiritueel":
                 dynamicIntro = "Ik begrijp dat het lastig kan zijn als je spirituele balans ontbreekt. Wat voelt op dit moment uit balans voor jou?";
