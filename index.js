@@ -1,43 +1,3 @@
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
-require("dotenv").config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json());
-
-const DATABASE_URL = 'https://raw.githubusercontent.com/affirmatietool/OPT/main/MBFullDatabase_Final.json';
-
-let mbDatabase = {};
-
-// **Laad database en cache**
-async function loadDatabase() {
-    try {
-        const response = await axios.get(DATABASE_URL);
-        mbDatabase = response.data;
-        console.log("✅ MB-database geladen!");
-    } catch (error) {
-        console.error("❌ Fout bij ophalen van de database:", error);
-    }
-}
-loadDatabase();
-
-// **Sessiebeheer per gebruiker**
-let sessions = {};
-
-// **Definitie van MB-oplossingen**
-const products = {
-    "fysiek": "Master Jouw Gezondheid - Verbeter je fysieke klachten & vitaliteit. [Link]",
-    "mentaal": "Be Your Best Self - Ontwikkel mentale kracht, zelfdiscipline & groei. [Link]",
-    "emotioneel": "Verlicht Je Depressie - Herstel je emotionele balans & mentale helderheid. [Link]",
-    "high_end": "Elite Transformation - High-end coaching voor maximale transformatie. [Link]",
-    "spiritueel": "Beschermengelen Kaartendeck - Spirituele reflectie & dieper inzicht. [Link]"
-};
-
-// **OPT Revolutionaire AI-Coach**
 app.post("/api/chat", async (req, res) => {
     try {
         const { session_id, message } = req.body;
@@ -50,7 +10,8 @@ app.post("/api/chat", async (req, res) => {
             sessions[session_id] = {
                 conversation_history: [],
                 focus: null,
-                lastInteraction: Date.now()
+                lastInteraction: Date.now(),
+                response_memory: []
             };
         }
 
@@ -60,64 +21,45 @@ app.post("/api/chat", async (req, res) => {
 
         let responseText = "";
 
-        // **1️⃣ Eerst kijken of de vraag in de kennisbank staat**
-        const matchedTopic = Object.keys(mbDatabase).find(topic => message.toLowerCase().includes(topic.toLowerCase()));
+        // **Stap 1: Database als startpunt - Zoek relevante kennis**
+        const matchedTopics = Object.keys(mbDatabase).filter(topic => message.toLowerCase().includes(topic.toLowerCase()));
 
-        if (matchedTopic) {
-            const content = mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 400);
-            responseText = `Ik hoor je en herken dit als een belangrijk onderwerp. Hier is iets dat mogelijk aansluit: "${content}"... Wat voel je als je dit leest?`;
+        if (matchedTopics.length > 0) {
+            let combinedKnowledge = matchedTopics.map(topic => mbDatabase[topic]["volledige_inhoud"]).join(" ");
+            responseText = `"${combinedKnowledge.substring(0, 500)}"... Hoe voelt dit voor jou? Wat herken je hierin?`;
         } 
-        // **2️⃣ Emotionele herkenning en diepe reflectie**
+        // **Stap 2: Als er geen directe database match is, gebruik coachingtechnieken**
         else if (["depressie", "ik voel me slecht", "ik ben moe", "ik ben verloren", "angst"].some(phrase => message.toLowerCase().includes(phrase))) {
-            responseText = "Ik hoor je. Dit is geen gemakkelijke plek om in te zitten. Wat heb je op dit moment nodig?";
+            responseText = "Ik hoor je en ik ben hier voor je. Wat is op dit moment het meest waardevolle inzicht dat je zou kunnen krijgen?";
         } 
-        // **3️⃣ OPT voorkomt vage gesprekken en stuurt altijd door naar reflectie**
-        else if (["weet niet", "geen idee", "ik snap het niet", "ik voel niks"].some(phrase => message.toLowerCase().includes(phrase))) {
-            responseText = "Soms is het lastig om te voelen wat er speelt. Wat gebeurt er in je lichaam als je dit nu zegt?";
+        else if (["gehoord worden", "begrepen worden", "ik wil praten", "ik wil delen"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Ik ben hier om naar je te luisteren. Vertel me wat het meest op je hart ligt.";
         } 
-        // **4️⃣ Diepere coaching op patronen en overtuigingen**
-        else if (session.conversation_history.length >= 5) {
-            responseText = "Ik merk dat je hier echt mee zit. Wat is de grootste overtuiging die je tegenhoudt om vooruit te komen?";
+        else if (["geen idee", "weet niet", "ik snap het niet", "ik voel niks"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Dat is oké. Soms helpt het om even stil te staan bij wat er is. Wat gebeurt er in je lichaam als je hierover nadenkt?";
         } 
-        // **5️⃣ Als de gebruiker openstaat, biedt OPT een MB-oplossing aan als reflectie, niet als verkoop**
+        else if (session.response_memory.includes(message.toLowerCase())) {
+            responseText = "Je blijft terugkomen op dit punt, en dat is begrijpelijk. Wat als we hier vanuit een andere invalshoek naar kijken?";
+        } 
+        else if (session.conversation_history.length >= 6) {
+            responseText = "Ik voel dat er iets diepers speelt. Wat zou er gebeuren als je nu een kleine, bewuste stap zet richting verandering?";
+        } 
         else {
             const focus = determineProductCategory(message);
             if (focus && products[focus]) {
-                responseText = `Veel mensen die dit ervaren, hebben baat bij ${products[focus]}. Dit is geen oplossing, maar kan een richting zijn. Hoe voelt dit voor jou?`;
+                responseText = `Veel mensen die zich zo voelen, hebben baat gehad bij ${products[focus]}. Dit is geen oplossing, maar kan richting geven. Wat roept dit bij je op?`;
             } else {
-                responseText = "Ik ben hier om je te ondersteunen. Wat is het meest waardevolle inzicht dat je nu zou kunnen krijgen?";
+                responseText = "Ik ben hier om je te ondersteunen. Wat is op dit moment het belangrijkste voor jou?";
             }
         }
 
+        // **OPT onthoudt eerder gegeven antwoorden om herhaling te voorkomen**
+        session.response_memory.push(message.toLowerCase());
         session.conversation_history.push({ role: "bot", content: responseText });
+
         res.json({ response: responseText });
     } catch (error) {
         console.error("❌ Fout bij API-aanroep:", error);
         res.status(500).json({ error: "Er ging iets mis met de API-aanroep." });
     }
-});
-
-// **Detecteren van relevante MB-producten op basis van vraag**
-function determineProductCategory(message) {
-    if (message.match(/(blessure|pijn|klachten|sport)/i)) return "fysiek";
-    if (message.match(/(stress|focus|discipline|mentaal|angst)/i)) return "mentaal";
-    if (message.match(/(somber|verdriet|depressie|burnout|emotioneel)/i)) return "emotioneel";
-    if (message.match(/(groei|succes|hoge doelen|doorbraak)/i)) return "high_end";
-    if (message.match(/(energie|spiritualiteit|ziel|intuïtie)/i)) return "spiritueel";
-    return null;
-}
-
-// **Automatische sessie-opruiming**
-setInterval(() => {
-    const now = Date.now();
-    for (const sessionId in sessions) {
-        if (now - sessions[sessionId].lastInteraction > 30 * 60 * 1000) {
-            delete sessions[sessionId];
-        }
-    }
-}, 5 * 60 * 1000);
-
-// **Start de server**
-app.listen(PORT, () => {
-    console.log(`🚀 OPT draait op poort ${PORT}`);
 });
