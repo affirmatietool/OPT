@@ -1,51 +1,3 @@
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
-require("dotenv").config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json());
-
-const DATABASE_URL = 'https://raw.githubusercontent.com/affirmatietool/OPT/main/MBFullDatabase_Final.json';
-
-let mbDatabase = {};
-
-// **Laad database vanuit GitHub**
-async function loadDatabase() {
-    try {
-        const response = await axios.get(DATABASE_URL);
-        mbDatabase = response.data;
-        console.log("✅ MB-database geladen!");
-    } catch (error) {
-        console.error("❌ Fout bij ophalen van de database:", error);
-    }
-}
-loadDatabase();
-
-// **Sessiebeheer per gebruiker**
-let sessions = {};
-
-const products = {
-    "fysiek": "Master Jouw Gezondheid - Verbeter je fysieke klachten & vitaliteit. [Link]",
-    "mentaal": "Be Your Best Self - Ontwikkel mentale kracht, zelfdiscipline & groei. [Link]",
-    "emotioneel": "Verlicht Je Depressie - Herstel je emotionele balans & mentale helderheid. [Link]",
-    "high_end": "Elite Transformation - High-end coaching voor maximale transformatie. [Link]",
-    "spiritueel": "Beschermengelen Kaartendeck - Spirituele reflectie & dieper inzicht. [Link]"
-};
-
-// **API om de MB-kennisbank op te halen**
-app.get("/api/getMBContent", (req, res) => {
-    const { topic } = req.query;
-    if (!topic || !mbDatabase[topic]) {
-        return res.status(404).json({ error: "Onderwerp niet gevonden in de kennisbank." });
-    }
-    res.json(mbDatabase[topic]);
-});
-
-// **Slimme AI-coach met transformatieve logica**
 app.post("/api/chat", async (req, res) => {
     try {
         const { session_id, message } = req.body;
@@ -68,30 +20,30 @@ app.post("/api/chat", async (req, res) => {
 
         let responseText = "";
 
-        // **1️⃣ Eerst de vraag matchen met de kennisbank**
-        const matchedTopic = Object.keys(mbDatabase).find(topic => message.toLowerCase().includes(topic.toLowerCase()));
-
-        if (matchedTopic) {
-            responseText = `Ik herken iets dat hiermee te maken heeft: ${mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 300)}... Wil je hier dieper op ingaan?`;
+        // **1️⃣ OPT erkent eerst de emotie van de gebruiker**
+        if (["depressie", "ik voel me slecht", "ik ben moe", "ik ben verloren"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Ik hoor je. Dat klinkt zwaar. Wil je delen hoe lang je je al zo voelt?";
         } 
-        
-        // **2️⃣ Onverwachte vragen herinterpreteren binnen MB-principes**
-        else if (["weet niet", "geen idee", "werkt niet", "vaag", "wat denk je"].some(phrase => message.toLowerCase().includes(phrase))) {
-            responseText = "Wat zou er gebeuren als je nu écht actie onderneemt? Wat weerhoudt je het meest van verandering?";
+        // **2️⃣ OPT checkt de kennisbank voor inzichten, zonder direct een oplossing te geven**
+        else if (Object.keys(mbDatabase).some(topic => message.toLowerCase().includes(topic.toLowerCase()))) {
+            const matchedTopic = Object.keys(mbDatabase).find(topic => message.toLowerCase().includes(topic.toLowerCase()));
+            responseText = `Dat is een belangrijk onderwerp. Wat ik vaak zie, is dat mensen hier dieper op in willen gaan. Hier is iets dat wellicht resoneert: ${mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 300)}... Wat raakt je hierin?`;
         } 
-        
-        // **3️⃣ Doorbraakvragen stellen om de gebruiker naar reflectie te leiden**
-        else if (["ik wil afvallen", "ik voel me vast", "ik wil veranderen", "hoe doorbreek ik patronen"].some(phrase => message.toLowerCase().includes(phrase))) {
-            responseText = "Als je écht eerlijk bent, wat weet je al lang maar blijf je vermijden?";
-        }
-        
-        // **4️⃣ De gebruiker richting een MB-oplossing sturen zonder pushen**
+        // **3️⃣ OPT stelt verdiepende vragen, zonder te pushen**
+        else if (["weet niet", "geen idee", "ik snap het niet"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Geen zorgen. Soms weten we niet meteen wat we voelen. Wat zou je helpen om dit beter te begrijpen?";
+        } 
+        // **4️⃣ OPT voorkomt herhaling en biedt écht een doorbraak**
+        else if (session.conversation_history.filter(msg => msg.role === "user").length >= 5) {
+            responseText = "Ik merk dat je hier echt mee zit. Wat zou voor jou een eerste stap zijn, hoe klein ook?";
+        } 
+        // **5️⃣ Als de gebruiker zich gehoord voelt, introduceert OPT een MB-oplossing op een natuurlijke manier**
         else {
             const focus = determineProductCategory(message);
             if (focus && products[focus]) {
-                responseText = `Op basis van wat je zegt, denk ik dat ${products[focus]} je het beste kan helpen. Wil je weten waarom?`;
+                responseText = `Ik wil je niets opdringen, maar in mijn ervaring hebben mensen in jouw situatie veel gehad aan ${products[focus]}. Wat zou voor jou een waardevolle eerste stap zijn?`;
             } else {
-                responseText = "Ik hoor je en help je graag verder. Wat speelt er écht op dit moment bij jou?";
+                responseText = "Ik ben hier om je te ondersteunen. Wat is op dit moment het belangrijkste voor jou?";
             }
         }
 
@@ -101,29 +53,4 @@ app.post("/api/chat", async (req, res) => {
         console.error("❌ Fout bij API-aanroep:", error);
         res.status(500).json({ error: "Er ging iets mis met de API-aanroep." });
     }
-});
-
-// **Detecteren van relevante MB-producten op basis van vraag**
-function determineProductCategory(message) {
-    if (message.match(/(blessure|pijn|klachten|sport)/i)) return "fysiek";
-    if (message.match(/(stress|focus|discipline|mentaal|angst)/i)) return "mentaal";
-    if (message.match(/(somber|verdriet|depressie|burnout|emotioneel)/i)) return "emotioneel";
-    if (message.match(/(groei|succes|hoge doelen|doorbraak)/i)) return "high_end";
-    if (message.match(/(energie|spiritualiteit|ziel|intuïtie)/i)) return "spiritueel";
-    return null;
-}
-
-// **Automatische sessie-opruiming**
-setInterval(() => {
-    const now = Date.now();
-    for (const sessionId in sessions) {
-        if (now - sessions[sessionId].lastInteraction > 30 * 60 * 1000) {
-            delete sessions[sessionId];
-        }
-    }
-}, 5 * 60 * 1000);
-
-// **Start de server**
-app.listen(PORT, () => {
-    console.log(`🚀 Server draait op poort ${PORT}`);
 });
