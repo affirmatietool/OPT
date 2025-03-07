@@ -9,12 +9,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// **GitHub-raw link naar MBFullDatabase_Final.json**
-const DATABASE_URL = 'https://raw.githubusercontent.com/affirmatietool/OPT/refs/heads/main/MBFullDatabase_Final.json';
+const DATABASE_URL = 'https://raw.githubusercontent.com/affirmatietool/OPT/main/MBFullDatabase_Final.json';
 
 let mbDatabase = {};
 
-// **Functie om de database op te halen en te cachen**
+// **Laad database vanuit GitHub**
 async function loadDatabase() {
     try {
         const response = await axios.get(DATABASE_URL);
@@ -24,8 +23,6 @@ async function loadDatabase() {
         console.error("❌ Fout bij ophalen van de database:", error);
     }
 }
-
-// **Laad database bij opstarten**
 loadDatabase();
 
 // **Sessiebeheer per gebruiker**
@@ -39,7 +36,7 @@ const products = {
     "spiritueel": "Beschermengelen Kaartendeck - Spirituele reflectie & dieper inzicht. [Link]"
 };
 
-// **API-endpoint om kennis op te vragen**
+// **API om de MB-kennisbank op te halen**
 app.get("/api/getMBContent", (req, res) => {
     const { topic } = req.query;
     if (!topic || !mbDatabase[topic]) {
@@ -48,7 +45,7 @@ app.get("/api/getMBContent", (req, res) => {
     res.json(mbDatabase[topic]);
 });
 
-// **AI-chatfunctie met MB-kennis**
+// **Slimme AI-coach met transformatieve logica**
 app.post("/api/chat", async (req, res) => {
     try {
         const { session_id, message } = req.body;
@@ -60,7 +57,6 @@ app.post("/api/chat", async (req, res) => {
         if (!sessions[session_id]) {
             sessions[session_id] = {
                 conversation_history: [],
-                step: 1,
                 focus: null,
                 lastInteraction: Date.now()
             };
@@ -72,40 +68,33 @@ app.post("/api/chat", async (req, res) => {
 
         let responseText = "";
 
-        // **Check of de vraag in de MB-kennisbank zit**
+        // **1️⃣ Eerst de vraag matchen met de kennisbank**
         const matchedTopic = Object.keys(mbDatabase).find(topic => message.toLowerCase().includes(topic.toLowerCase()));
+
         if (matchedTopic) {
-            responseText = `Ik heb iets relevants voor je: ${mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 500)}... Wil je hier dieper op ingaan?`;
-        } else {
-            switch (session.step) {
-                case 1:
-                    responseText = "Waar kan ik je mee helpen?";
-                    break;
-                case 2:
-                    responseText = "Wanneer merk je deze klachten het meest?";
-                    break;
-                case 3:
-                    responseText = "Wat denk je zelf dat de oorzaak is?";
-                    break;
-                case 4:
-                    responseText = "Welke oplossing zoek je van mij?";
-                    break;
-                case 5:
-                    responseText = "Een standaard oplossing werkt vaak niet optimaal. Wat als je een op maat gemaakte aanpak krijgt die écht bij jou past?";
-                    break;
-                case 6:
-                    session.focus = determineProductCategory(message);
-                    responseText = `De beste manier om dit goed aan te pakken, is met: ${products[session.focus] || "een gepersonaliseerde aanpak van Mister Bewustzijn."}`;
-                    break;
-                case 7:
-                    responseText = "Wil je het écht goed aanpakken? Dan kun je hier direct een afspraak maken: [Link].";
-                    break;
-                default:
-                    responseText = "Ik hoor je en help je graag verder. Kun je daar iets meer over vertellen?";
+            responseText = `Ik herken iets dat hiermee te maken heeft: ${mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 300)}... Wil je hier dieper op ingaan?`;
+        } 
+        
+        // **2️⃣ Onverwachte vragen herinterpreteren binnen MB-principes**
+        else if (["weet niet", "geen idee", "werkt niet", "vaag", "wat denk je"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Wat zou er gebeuren als je nu écht actie onderneemt? Wat weerhoudt je het meest van verandering?";
+        } 
+        
+        // **3️⃣ Doorbraakvragen stellen om de gebruiker naar reflectie te leiden**
+        else if (["ik wil afvallen", "ik voel me vast", "ik wil veranderen", "hoe doorbreek ik patronen"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Als je écht eerlijk bent, wat weet je al lang maar blijf je vermijden?";
+        }
+        
+        // **4️⃣ De gebruiker richting een MB-oplossing sturen zonder pushen**
+        else {
+            const focus = determineProductCategory(message);
+            if (focus && products[focus]) {
+                responseText = `Op basis van wat je zegt, denk ik dat ${products[focus]} je het beste kan helpen. Wil je weten waarom?`;
+            } else {
+                responseText = "Ik hoor je en help je graag verder. Wat speelt er écht op dit moment bij jou?";
             }
         }
 
-        session.step++;
         session.conversation_history.push({ role: "bot", content: responseText });
         res.json({ response: responseText });
     } catch (error) {
@@ -114,14 +103,14 @@ app.post("/api/chat", async (req, res) => {
     }
 });
 
-// **Bepalen welke MB-oplossing relevant is op basis van de input**
+// **Detecteren van relevante MB-producten op basis van vraag**
 function determineProductCategory(message) {
     if (message.match(/(blessure|pijn|klachten|sport)/i)) return "fysiek";
-    if (message.match(/(stress|focus|discipline)/i)) return "mentaal";
-    if (message.match(/(somber|verdriet|depressie)/i)) return "emotioneel";
-    if (message.match(/(groei|succes|hoge doelen)/i)) return "high_end";
-    if (message.match(/(energie|spiritualiteit|ziel)/i)) return "spiritueel";
-    return "fysiek";
+    if (message.match(/(stress|focus|discipline|mentaal|angst)/i)) return "mentaal";
+    if (message.match(/(somber|verdriet|depressie|burnout|emotioneel)/i)) return "emotioneel";
+    if (message.match(/(groei|succes|hoge doelen|doorbraak)/i)) return "high_end";
+    if (message.match(/(energie|spiritualiteit|ziel|intuïtie)/i)) return "spiritueel";
+    return null;
 }
 
 // **Automatische sessie-opruiming**
