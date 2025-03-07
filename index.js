@@ -13,18 +13,16 @@ const DATABASE_URL = "https://raw.githubusercontent.com/affirmatietool/OPT/refs/
 
 let mbDatabase = {};
 
-// **Laad database en cache deze**
+// **Laad database en check of deze correct geladen is**
 async function loadDatabase() {
     try {
         console.log("📡 Ophalen van database vanaf:", DATABASE_URL);
         const response = await axios.get(DATABASE_URL, { timeout: 10000 });
 
-        // Controleer of de respons succesvol is
         if (response.status !== 200) {
             throw new Error(`Fout bij ophalen database: HTTP-status ${response.status}`);
         }
 
-        // Controleer of de data correct is en niet leeg
         const data = response.data;
         if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
             throw new Error("De database is leeg of heeft een verkeerd formaat.");
@@ -32,13 +30,15 @@ async function loadDatabase() {
 
         mbDatabase = data;
         console.log(`✅ MB-database geladen met ${Object.keys(mbDatabase).length} onderwerpen.`);
+        console.log("🔍 Database preview:", Object.keys(mbDatabase).slice(0, 5)); // Toon de eerste 5 onderwerpen
+
     } catch (error) {
         console.error("❌ Database laadfout:", error.message);
-        mbDatabase = {}; // Zorg dat mbDatabase nooit undefined is
+        mbDatabase = {}; 
     }
 }
 
-// **Initialiseer de database bij serverstart**
+// **Laad de database bij het opstarten**
 loadDatabase();
 
 // **API-endpoint voor chat**
@@ -59,15 +59,20 @@ app.post("/api/chat", async (req, res) => {
             }
         }
 
-        // **Stap 2: Zoek relevante kennis in de database**
-        const matchedTopics = Object.keys(mbDatabase).filter(topic => 
-            message.toLowerCase().includes(topic.toLowerCase()) && mbDatabase[topic] && mbDatabase[topic]["volledige_inhoud"]
+        console.log("🔎 Gebruikersvraag:", message);
+
+        // **Stap 2: Zoek of een woord uit de database voorkomt in de vraag**
+        let matchedTopic = Object.keys(mbDatabase).find(topic =>
+            message.toLowerCase().includes(topic.toLowerCase())
         );
 
         let responseText = "Ik heb daar geen informatie over.";
 
-        if (matchedTopics.length > 0) {
-            responseText = mbDatabase[matchedTopics[0]]["volledige_inhoud"].substring(0, 500);
+        if (matchedTopic) {
+            console.log(`✅ Match gevonden: ${matchedTopic}`);
+            responseText = mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 500);
+        } else {
+            console.log("❌ Geen match gevonden in database.");
         }
 
         res.json({ response: responseText });
