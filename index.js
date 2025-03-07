@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const DATABASE_URL = "https://raw.githubusercontent.com/affirmatietool/OPT/refs/heads/main/MBFullDatabase_Final.json?token=GHSAT0AAAAAADACEBMRK6DFVPLFQVLM5HWSZ6LDTUQ";
+const DATABASE_URL = "https://raw.githubusercontent.com/affirmatietool/OPT/refs/heads/main/MBFullDatabase_Final.json";
 
 let mbDatabase = {};
 
@@ -17,13 +17,28 @@ let mbDatabase = {};
 async function loadDatabase() {
     try {
         console.log("📡 Ophalen van database vanaf:", DATABASE_URL);
-        const response = await axios.get(DATABASE_URL);
-        mbDatabase = response.data;
-        console.log("✅ MB-database geladen met", Object.keys(mbDatabase).length, "onderwerpen.");
+        const response = await axios.get(DATABASE_URL, { timeout: 10000 });
+
+        // Controleer of de respons succesvol is
+        if (response.status !== 200) {
+            throw new Error(`Fout bij ophalen database: HTTP-status ${response.status}`);
+        }
+
+        // Controleer of de data correct is en niet leeg
+        const data = response.data;
+        if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+            throw new Error("De database is leeg of heeft een verkeerd formaat.");
+        }
+
+        mbDatabase = data;
+        console.log(`✅ MB-database geladen met ${Object.keys(mbDatabase).length} onderwerpen.`);
     } catch (error) {
         console.error("❌ Database laadfout:", error.message);
+        mbDatabase = {}; // Zorg dat mbDatabase nooit undefined is
     }
 }
+
+// **Initialiseer de database bij serverstart**
 loadDatabase();
 
 // **Sessiebeheer per gebruiker**
@@ -62,43 +77,47 @@ app.post("/api/chat", async (req, res) => {
 
         let responseText = "";
 
-        // **Stap 1: Check of database geladen is**
+        // **Stap 1: Check of database correct geladen is**
         if (!mbDatabase || Object.keys(mbDatabase).length === 0) {
-            responseText = "Ik ben mijn kennis nog aan het laden. Probeer het over een paar seconden opnieuw.";
-        } else {
-            // **Stap 2: Database als startpunt - Zoek relevante kennis**
-            const matchedTopics = Object.keys(mbDatabase).filter(topic => 
-                message.toLowerCase().includes(topic.toLowerCase()) && mbDatabase[topic] && mbDatabase[topic]["volledige_inhoud"]
-            );
+            console.log("⚠️ Database is leeg, opnieuw laden...");
+            await loadDatabase();
+            if (!mbDatabase || Object.keys(mbDatabase).length === 0) {
+                return res.json({ response: "Mijn kennis is nog niet beschikbaar. Probeer het later opnieuw." });
+            }
+        }
 
-            if (matchedTopics.length > 0) {
-                let combinedKnowledge = matchedTopics.map(topic => mbDatabase[topic]["volledige_inhoud"]).join(" ");
-                responseText = `"${combinedKnowledge.substring(0, 500)}"... Wat herken je hierin? Hoe voelt dit voor jou?`;
-            } 
-            // **Stap 3: Als er geen directe database match is, gebruik coachingtechnieken**
-            else if (["depressie", "ik voel me slecht", "ik ben moe", "ik ben verloren", "angst"].some(phrase => message.toLowerCase().includes(phrase))) {
-                responseText = "Ik hoor je en ik ben hier voor je. Wat heb je nu nodig om een klein stapje vooruit te zetten?";
-            } 
-            else if (["gehoord worden", "begrepen worden", "ik wil praten", "ik wil delen"].some(phrase => message.toLowerCase().includes(phrase))) {
-                responseText = "Ik ben hier om naar je te luisteren. Vertel me wat er nu in je omgaat.";
-            } 
-            else if (["geen idee", "weet niet", "ik snap het niet", "ik voel niks"].some(phrase => message.toLowerCase().includes(phrase))) {
-                responseText = "Dat is oké. Soms helpt het om even stil te staan bij wat er is. Wat gebeurt er in je lichaam als je hierover nadenkt?";
-            } 
-            else if (session.response_memory.includes(message.toLowerCase())) {
-                responseText = "Je blijft terugkomen op dit punt, en dat is begrijpelijk. Wat als we hier vanuit een andere invalshoek naar kijken?";
-            } 
-            else if (session.conversation_history.length >= 6) {
-                responseText = "Ik voel dat er iets diepers speelt. Wat zou er gebeuren als je nu een kleine, bewuste stap zet richting verandering?";
-            } 
-            // **Stap 4: Als de gebruiker openstaat, biedt OPT een MB-oplossing aan als inspiratie, niet als verkoop**
-            else {
-                const focus = determineProductCategory(message);
-                if (focus && products[focus]) {
-                    responseText = `Veel mensen die zich zo voelen, hebben baat gehad bij ${products[focus]}. Dit is geen oplossing, maar kan richting geven. Wat roept dit bij je op?`;
-                } else {
-                    responseText = "Ik ben hier om je te ondersteunen. Wat is op dit moment het belangrijkste voor jou?";
-                }
+        // **Stap 2: Zoek relevante kennis in de database**
+        const matchedTopics = Object.keys(mbDatabase).filter(topic => 
+            message.toLowerCase().includes(topic.toLowerCase()) && mbDatabase[topic] && mbDatabase[topic]["volledige_inhoud"]
+        );
+
+        if (matchedTopics.length > 0) {
+            let combinedKnowledge = matchedTopics.map(topic => mbDatabase[topic]["volledige_inhoud"]).join(" ");
+            responseText = `"${combinedKnowledge.substring(0, 500)}"... Wat herken je hierin? Hoe voelt dit voor jou?`;
+        } 
+        // **Stap 3: Als er geen database match is, gebruik coachingtechnieken**
+        else if (["depressie", "ik voel me slecht", "ik ben moe", "ik ben verloren", "angst"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Ik hoor je en ik ben hier voor je. Wat heb je nu nodig om een klein stapje vooruit te zetten?";
+        } 
+        else if (["gehoord worden", "begrepen worden", "ik wil praten", "ik wil delen"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Ik ben hier om naar je te luisteren. Vertel me wat er nu in je omgaat.";
+        } 
+        else if (["geen idee", "weet niet", "ik snap het niet", "ik voel niks"].some(phrase => message.toLowerCase().includes(phrase))) {
+            responseText = "Dat is oké. Soms helpt het om even stil te staan bij wat er is. Wat gebeurt er in je lichaam als je hierover nadenkt?";
+        } 
+        else if (session.response_memory.includes(message.toLowerCase())) {
+            responseText = "Je blijft terugkomen op dit punt, en dat is begrijpelijk. Wat als we hier vanuit een andere invalshoek naar kijken?";
+        } 
+        else if (session.conversation_history.length >= 6) {
+            responseText = "Ik voel dat er iets diepers speelt. Wat zou er gebeuren als je nu een kleine, bewuste stap zet richting verandering?";
+        } 
+        // **Stap 4: Als de gebruiker openstaat, biedt OPT een MB-oplossing aan als inspiratie, niet als verkoop**
+        else {
+            const focus = determineProductCategory(message);
+            if (focus && products[focus]) {
+                responseText = `Veel mensen die zich zo voelen, hebben baat gehad bij ${products[focus]}. Dit is geen oplossing, maar kan richting geven. Wat roept dit bij je op?`;
+            } else {
+                responseText = "Ik ben hier om je te ondersteunen. Wat is op dit moment het belangrijkste voor jou?";
             }
         }
 
