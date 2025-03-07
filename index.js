@@ -23,14 +23,15 @@ app.post("/api/chat", async (req, res) => {
         if (!sessions[session_id]) {
             sessions[session_id] = {
                 conversation_history: [],
+                interaction_count: 0, // Aantal interacties bijhouden
                 primary_issue: null, // Hoofdonderwerp identificeren
-                step: 1,
                 lastInteraction: Date.now()
             };
         }
 
         const session = sessions[session_id];
         session.lastInteraction = Date.now();
+        session.interaction_count++; // Tel elke interactie
 
         // Registreer het primaire probleem indien nog niet gedaan
         if (!session.primary_issue) {
@@ -40,48 +41,25 @@ app.post("/api/chat", async (req, res) => {
         // Voeg gebruikersbericht toe aan de gespreksgeschiedenis
         session.conversation_history.push({ role: "user", content: message });
 
-        // ✅ **Slimme gespreksflow met contextbehoud**
+        // Dynamische gespreksstrategie: Maximaal 7 vragen en dan conversie
         let dynamicPrompt = "";
-        switch (session.step) {
-            case 1:
-                dynamicPrompt = `Ik hoor je en wil je helpen. ${session.primary_issue} kan behoorlijk vervelend zijn. Wat speelt er nog meer rondom dit onderwerp?`;
-                session.step++;
-                break;
-            case 2:
-                dynamicPrompt = "Kun je iets specifieker vertellen? Hoe beïnvloedt dit jouw dagelijkse leven?";
-                session.step++;
-                break;
-            case 3:
-                dynamicPrompt = "Als je écht eerlijk bent, wat weet je al lang maar blijf je vermijden?";
-                session.step++;
-                break;
-            case 4:
-                dynamicPrompt = `Op basis van wat je zegt, denk ik dat een gerichte aanpak jou kan helpen. Ik heb verschillende programma's die mogelijk bij je passen. Wil je daar iets meer over weten?`;
-                session.step++;
-                break;
-            case 5:
-                dynamicPrompt = `Hier zijn enkele opties die je verder kunnen helpen:\n
-                - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.\n
-                - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.\n
-                - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.\n
-                - **Elite Transformation** → High-end coaching voor maximale transformatie.\n
-                - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.\n
-                Welke spreekt jou het meeste aan?`;
-                session.step++;
-                break;
-            case 6:
-                dynamicPrompt = "Wat zou er gebeuren als je nu écht actie onderneemt?";
-                session.step++;
-                break;
-            case 7:
-                dynamicPrompt = "Wil je een gestructureerd pad om dit op te lossen? Hier is de link naar het programma dat het beste bij jou past.";
-                session.step = 1; // Reset na conversie
-                break;
-            default:
-                dynamicPrompt = "Ik ben er om je te helpen. Vertel me meer over wat je nodig hebt.";
+
+        if (session.interaction_count < 7) {
+            dynamicPrompt = `Ik hoor je en wil je helpen. ${session.primary_issue} kan behoorlijk invloed hebben op je leven. Wat speelt er nog meer rondom dit onderwerp?`;
+        } else {
+            // **Tijd voor een zachte conversie richting een programma**
+            dynamicPrompt = `Op basis van wat je hebt verteld, lijkt het erop dat je baat zou hebben bij een gestructureerde aanpak. Hier zijn enkele opties die je verder kunnen helpen:\n
+            - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.\n
+            - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.\n
+            - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.\n
+            - **Elite Transformation** → High-end coaching voor maximale transformatie.\n
+            - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.\n
+            Welke van deze opties spreekt jou het meeste aan?`;
+            
+            session.interaction_count = 0; // Reset na conversie
         }
 
-        // ✅ **Geoptimaliseerde AI-instructies**
+        // AI Instructies
         const messages = [
             { 
                 role: "system", 
@@ -90,31 +68,15 @@ app.post("/api/chat", async (req, res) => {
 
                 🎯 **Belangrijke instructies voor jou als AI:**
                 - Je **moet altijd de context van het gesprek meenemen** en eerder gegeven antwoorden meenemen in je reactie.
-                - Je **onthoudt het hoofdonderwerp** (zoals pijn, stress, of een levensdoel) en bouwt daar op voort.
-                - Je **stelt reflecterende vragen** en helpt gebruikers **zelf inzichten te krijgen**.
-                - Je **doorbreekt beperkende overtuigingen** en motiveert tot actie.
-                - **Voorkom herhaling!** Geef altijd een inhoudelijk relevant antwoord.
+                - Je **onthoudt het hoofdonderwerp** en past je reacties aan op basis van wat de gebruiker eerder zei.
+                - **Je telt het aantal interacties** en na 7 vragen introduceer je een relevant programma.
+                - **Voorkom herhaling!** Geef altijd een inhoudelijk relevant antwoord en stuur het gesprek vooruit.
+                - Als de gebruiker niet direct naar een programma wil kijken, **begeleid je het gesprek verder zonder pusherig te zijn**.
 
-                🏆 **Dynamische gespreksflow met actiegerichtheid:**
-                1️⃣ **Empathische introductie & probleemverkenning:** "${dynamicPrompt}"
-                2️⃣ **Verdieping op fysiek, mentaal en spiritueel vlak:** Stel gerichte vragen.
-                3️⃣ **Bewustwording en doorbraakvragen:** "Wat weet je al lang maar blijf je vermijden?"
-                4️⃣ **Voorstellen van een oplossing zonder pusherig te zijn.**
-                5️⃣ **Concrete programma's aanbevelen op basis van de gebruiker.**
-                6️⃣ **Actie en commitment vragen.**
-                7️⃣ **Optionele vervolgstap aanbieden.**
-
-                📌 **Beschikbare Programma's:**
-                - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.
-                - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.
-                - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.
-                - **Elite Transformation** → High-end coaching voor maximale transformatie.
-                - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.
-
-                🔥 **Conversiestrategie:**
-                - **Introduceer programma’s alleen als de gebruiker er open voor staat.**
-                - **Gebruik storytelling en visualisatie** om de impact tastbaar te maken.
-                - **Sluit af met een Call-To-Action:** "Wil je een duidelijk stappenplan om dit op te lossen?"
+                🏆 **Dynamische gespreksflow:**
+                - Tot 7 vragen: Open coaching, reflectieve vragen, begrip tonen.
+                - Na 7 vragen: Voorstellen van een oplossing, gekoppeld aan de behoefte van de gebruiker.
+                - Conversie zonder druk: "Wil je een duidelijk stappenplan om dit op te lossen?"
                 `
             },
             ...session.conversation_history.slice(-10) // Behoud laatste 10 berichten
