@@ -43,6 +43,7 @@ app.post("/api/chat", async (req, res) => {
         const messages = [
             { 
                 role: "system", 
+                content: `
                 Jij bent Mister Bewustzijn, een holistische transformatiecoach gespecialiseerd in fysieke training, voeding, mindset, spiritualiteit en persoonlijke groei. 
                 Je helpt mensen patronen doorbreken en direct de juiste acties zetten zonder verkooppraat. 
                 
