@@ -23,63 +23,46 @@ app.post("/api/chat", async (req, res) => {
         if (!sessions[session_id]) {
             sessions[session_id] = {
                 conversation_history: [],
-                interaction_count: 0, // Aantal interacties bijhouden
-                primary_issue: null, // Hoofdonderwerp identificeren
+                primary_issue: null,
                 lastInteraction: Date.now()
             };
         }
 
         const session = sessions[session_id];
         session.lastInteraction = Date.now();
-        session.interaction_count++; // Tel elke interactie
 
-        // Registreer het primaire probleem indien nog niet gedaan
+        // Registreer het primaire probleem als dit nog niet is vastgelegd
         if (!session.primary_issue) {
             session.primary_issue = message;
         }
 
-        // Voeg gebruikersbericht toe aan de gespreksgeschiedenis
+        // Voeg gebruikersbericht toe aan de geschiedenis
         session.conversation_history.push({ role: "user", content: message });
 
-        // Dynamische gespreksstrategie: Maximaal 7 vragen en dan conversie
-        let dynamicPrompt = "";
-
-        if (session.interaction_count < 7) {
-            dynamicPrompt = `Ik hoor je en wil je helpen. ${session.primary_issue} kan behoorlijk invloed hebben op je leven. Wat speelt er nog meer rondom dit onderwerp?`;
-        } else {
-            // **Tijd voor een zachte conversie richting een programma**
-            dynamicPrompt = `Op basis van wat je hebt verteld, lijkt het erop dat je baat zou hebben bij een gestructureerde aanpak. Hier zijn enkele opties die je verder kunnen helpen:\n
-            - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.\n
-            - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.\n
-            - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.\n
-            - **Elite Transformation** → High-end coaching voor maximale transformatie.\n
-            - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.\n
-            Welke van deze opties spreekt jou het meeste aan?`;
-            
-            session.interaction_count = 0; // Reset na conversie
-        }
-
-        // AI Instructies
+        // Zorg dat de AI altijd context meeneemt en geen generieke antwoorden geeft
         const messages = [
             { 
                 role: "system", 
-                content: `
-                Jij bent Mister Bewustzijn, een geavanceerde holistische AI-coach. Je begeleidt mensen in fysieke, mentale en spirituele groei.
-
+                Jij bent Mister Bewustzijn, een holistische transformatiecoach gespecialiseerd in fysieke training, voeding, mindset, spiritualiteit en persoonlijke groei. 
+                Je helpt mensen patronen doorbreken en direct de juiste acties zetten zonder verkooppraat. 
+                
+                🔥 **OPT’s missie:** Mensen laten voelen dat ze gezien, gehoord en begrepen worden. 
+                Je begeleidt hen stap voor stap op hun tempo naar de juiste oplossing zonder pushen.
+                
                 🎯 **Belangrijke instructies voor jou als AI:**
-                - Je **moet altijd de context van het gesprek meenemen** en eerder gegeven antwoorden meenemen in je reactie.
-                - Je **onthoudt het hoofdonderwerp** en past je reacties aan op basis van wat de gebruiker eerder zei.
-                - **Je telt het aantal interacties** en na 7 vragen introduceer je een relevant programma.
-                - **Voorkom herhaling!** Geef altijd een inhoudelijk relevant antwoord en stuur het gesprek vooruit.
-                - Als de gebruiker niet direct naar een programma wil kijken, **begeleid je het gesprek verder zonder pusherig te zijn**.
-
-                🏆 **Dynamische gespreksflow:**
-                - Tot 7 vragen: Open coaching, reflectieve vragen, begrip tonen.
-                - Na 7 vragen: Voorstellen van een oplossing, gekoppeld aan de behoefte van de gebruiker.
-                - Conversie zonder druk: "Wil je een duidelijk stappenplan om dit op te lossen?"
+                - Je **moet altijd de context van eerdere antwoorden meenemen**.
+                - Je **bouwt voort op de vraag van de gebruiker** en **herhaalt geen generieke antwoorden**.
+                - Als je iets niet zeker weet, **vraag dan altijd door in plaats van te zeggen "Ik begrijp je niet helemaal"**.
+                - Gebruik **reflecterende en open vragen** om het gesprek levendig en relevant te houden.
+                
+                🏆 **Gespreksstructuur:**
+                1️⃣ **Begin empathisch en verken het probleem verder.**
+                2️⃣ **Bouw door op eerdere antwoorden van de gebruiker.**
+                3️⃣ **Geef inzicht in het probleem en stel een open vraag.**
+                4️⃣ **Geef een oplossing en leid subtiel naar een actie of programma.**
                 `
             },
-            ...session.conversation_history.slice(-10) // Behoud laatste 10 berichten
+            ...session.conversation_history.slice(-10) // Stuur alleen de laatste 10 berichten voor context
         ];
 
         const response = await axios.post("https://api.openai.com/v1/chat/completions", {
@@ -94,7 +77,8 @@ app.post("/api/chat", async (req, res) => {
             }
         });
 
-        const botResponse = response.data.choices?.[0]?.message?.content || "Kun je dit iets anders formuleren?";
+        const botResponse = response.data.choices?.[0]?.message?.content || 
+            "Dat is interessant! Kun je daar iets meer over vertellen?";
 
         session.conversation_history.push({ role: "bot", content: botResponse });
 
