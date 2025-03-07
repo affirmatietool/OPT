@@ -26,11 +26,13 @@ app.post("/api/chat", async (req, res) => {
             sessions[session_id] = {
                 focus_area: focus_area || "algemeen",
                 conversation_history: [],
-                step: 1 // Start gespreksflow bij stap 1
+                step: 1, // Start gespreksflow bij stap 1
+                lastInteraction: Date.now() // Timestamp van laatste interactie
             };
         }
 
         const session = sessions[session_id];
+        session.lastInteraction = Date.now(); // Update laatste interactie
 
         // Voeg gebruikersbericht toe aan de geschiedenis
         session.conversation_history.push({ role: "user", content: message });
@@ -72,18 +74,9 @@ app.post("/api/chat", async (req, res) => {
                 5️⃣ **Specifieke oplossing:** Introduceer maximaal één programma of advies tegelijk.
                 6️⃣ **Toewijding:** Vraag concreet naar de bereidheid om iets te veranderen.
                 7️⃣ **Vervolgstap:** "Wil je verder begeleiding hierin?" → Link naar het juiste programma.
-
-                📌 **Beschikbare Programma's:**
-                - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.
-                - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.
-                - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.
-                - **Elite Transformation** → High-end coaching voor maximale transformatie.
-                - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.
-
-                🔥 **OPT laat iedereen zich gehoord, gezien en begrepen voelen en leidt hen subtiel naar de beste oplossing.**
                 `
             },
-            ...session.conversation_history
+            ...session.conversation_history.slice(-10) // Beperk tot laatste 10 berichten
         ];
 
         const response = await axios.post("https://api.openai.com/v1/chat/completions", {
@@ -99,27 +92,28 @@ app.post("/api/chat", async (req, res) => {
         });
 
         const botResponse = response.data.choices?.[0]?.message?.content || 
-            "Ik begrijp je vraag niet helemaal. Kun je dit anders formuleren?";
+            "Ik ben er om je te helpen. Kun je me iets meer vertellen over wat je nodig hebt?";
 
-        // Voeg AI-reactie toe aan de sessiegeschiedenis
         session.conversation_history.push({ role: "bot", content: botResponse });
-
-        // Upgrade gespreksflow naar de volgende stap
-        session.step++;
 
         res.json({ response: botResponse });
     } catch (error) {
-        console.error("❌ Fout bij API-aanroep:", error);
-        res.status(500).json({ error: "Er ging iets mis met de API-aanroep." });
+        console.error("❌ Fout bij API-aanroep:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: "Er ging iets mis met de API-aanroep.", details: error.response ? error.response.data : error.message });
     }
 });
 
-// Test endpoint
-app.get("/", (req, res) => {
-    res.send("✅ OPT 2.0 API is live!");
-});
+// Automatische sessie-opruiming (elke 5 minuten)
+setInterval(() => {
+    const now = Date.now();
+    for (const sessionId in sessions) {
+        if (now - sessions[sessionId].lastInteraction > 30 * 60 * 1000) {
+            delete sessions[sessionId];
+        }
+    }
+}, 5 * 60 * 1000);
 
-// Start de server
+// Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server draait op poort ${PORT}`);
 });
