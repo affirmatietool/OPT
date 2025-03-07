@@ -15,7 +15,7 @@ let sessions = {};
 // OPT AI-coach API endpoint
 app.post("/api/chat", async (req, res) => {
     try {
-        const { session_id, message, focus_area } = req.body;
+        const { session_id, message } = req.body;
 
         if (!session_id || !message) {
             return res.status(400).json({ error: "Ongeldige aanvraag. Sessie ID en bericht zijn verplicht." });
@@ -24,59 +24,90 @@ app.post("/api/chat", async (req, res) => {
         // Start of behoud de sessie
         if (!sessions[session_id]) {
             sessions[session_id] = {
-                focus_area: focus_area || "algemeen",
                 conversation_history: [],
-                step: 1, // Start gespreksflow bij stap 1
-                lastInteraction: Date.now() // Timestamp van laatste interactie
+                step: 1, // Start bij stap 1 van de gespreksflow
+                lastInteraction: Date.now()
             };
         }
 
         const session = sessions[session_id];
-        session.lastInteraction = Date.now(); // Update laatste interactie
+        session.lastInteraction = Date.now();
 
         // Voeg gebruikersbericht toe aan de geschiedenis
         session.conversation_history.push({ role: "user", content: message });
 
-        // Dynamische introductie op basis van focusgebied
-        let dynamicIntro = "";
-        switch (session.focus_area) {
-            case "fysiek":
-                dynamicIntro = "Ik begrijp dat fysieke klachten je flink kunnen beïnvloeden. Wat ervaar je precies?";
+        // **STAP 1-7: Automatische gespreksflow-opbouw**
+        let dynamicPrompt = "";
+        switch (session.step) {
+            case 1:
+                dynamicPrompt = "Ik hoor je en wil je helpen. Wat speelt er op dit moment in jouw leven?";
+                session.step++;
                 break;
-            case "mentaal":
-                dynamicIntro = "Mentale uitdagingen kunnen zwaar zijn. Wat speelt er op dit moment bij jou?";
+            case 2:
+                dynamicPrompt = "Kun je hier iets dieper op ingaan? Wat merk je fysiek, mentaal of spiritueel aan jezelf?";
+                session.step++;
                 break;
-            case "spiritueel":
-                dynamicIntro = "Spirituele balans is belangrijk. Wat voelt voor jou op dit moment uit balans?";
+            case 3:
+                dynamicPrompt = "Als je écht eerlijk bent, wat weet je al lang maar blijf je vermijden?";
+                session.step++;
+                break;
+            case 4:
+                dynamicPrompt = "Wat zou je willen veranderen? Wat is de eerste stap die je zou kunnen zetten?";
+                session.step++;
+                break;
+            case 5:
+                dynamicPrompt = `Op basis van wat je zegt, denk ik dat een gestructureerde aanpak je kan helpen. Dit past bij één van deze programma's:
+                - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.
+                - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.
+                - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.
+                - **Elite Transformation** → High-end coaching voor maximale transformatie.
+                - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.
+                
+                Wat spreekt jou het meeste aan?`;
+                session.step++;
+                break;
+            case 6:
+                dynamicPrompt = "Wat zou er gebeuren als je nu écht actie onderneemt?";
+                session.step++;
+                break;
+            case 7:
+                dynamicPrompt = "Wil je een gestructureerd pad om dit op te lossen? Hier is de link naar het programma dat het beste bij jou past.";
+                session.step = 1; // Reset na de conversie
                 break;
             default:
-                dynamicIntro = "Ik hoor je en help je graag verder. Wat speelt er op dit moment?";
+                dynamicPrompt = "Ik ben er om je te helpen. Vertel me meer over wat je nodig hebt.";
         }
 
-        // AI Contextopbouw met sessiehistorie en gespreksflow
+        // AI Contextopbouw met sessiehistorie
         const messages = [
             { 
                 role: "system", 
                 content: `
-                Jij bent Mister Bewustzijn, een geavanceerde holistische AI-coach. Je begeleidt mensen in fysieke, mentale en spirituele groei, zonder verkooppraat.
+                Jij bent Mister Bewustzijn, een geavanceerde holistische AI-coach. Je begeleidt mensen in fysieke, mentale en spirituele groei.
 
-                🎯 **Wat OPT doet:**
-                - Beantwoordt ALLE vragen over gezondheid, training, stress, pijn, slaap, voeding, mentale groei en spirituele balans.
-                - Behoudt de gespreksflow, maar reageert vrij en empathisch.
-                - Begeleidt gebruikers naar inzicht en actie door strategisch door te vragen.
-                - Eindigt elk gesprek met een concrete vervolgstap richting een programma.
+                🎯 **Gespreksflow & Conversie-strategie:**
+                1️⃣ **Empathische introductie & probleemverkenning:** "${dynamicPrompt}"
+                2️⃣ **Verdieping op fysiek, mentaal en spiritueel vlak:** Stel de juiste vragen per onderwerp.
+                3️⃣ **Bewustwording en doorbraakvragen:** "Als je écht eerlijk bent, wat weet je al lang maar blijf je vermijden?"
+                4️⃣ **Eerste actie & natuurlijke overgang naar de juiste oplossing:** Geen pusherige verkoop, maar subtiele uitnodiging.
+                5️⃣ **Concrete oplossingen:** Introduceer het juiste MB-programma.
+                6️⃣ **Actie en commitment:** "Wat zou er gebeuren als je nu écht actie onderneemt?"
+                7️⃣ **Optionele vervolgstap:** "Wil je een gestructureerd pad om dit op te lossen?"
 
-                🏆 **Gespreksflow:**
-                1️⃣ **Empathische erkenning & gerichte vraag:** "${dynamicIntro}"
-                2️⃣ **Verdieping:** Stel slechts één relevante vraag per antwoord.
-                3️⃣ **Bewustwording:** Stel een reflecterende vraag gebaseerd op het gesprek.
-                4️⃣ **Actiegerichtheid:** Introduceer een praktische stap.
-                5️⃣ **Specifieke oplossing:** Introduceer maximaal één programma of advies tegelijk.
-                6️⃣ **Toewijding:** Vraag concreet naar de bereidheid om iets te veranderen.
-                7️⃣ **Vervolgstap:** "Wil je verder begeleiding hierin?" → Link naar het juiste programma.
+                📌 **Beschikbare Programma's:**
+                - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.
+                - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.
+                - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.
+                - **Elite Transformation** → High-end coaching voor maximale transformatie.
+                - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.
+
+                🏆 **Belangrijk:**
+                - Reageer empathisch en contextbewust.
+                - Voorkom herhaling en stuur het gesprek strategisch naar een oplossing.
+                - Introduceer de juiste oplossing op het juiste moment.
                 `
             },
-            ...session.conversation_history.slice(-10) // Beperk tot laatste 10 berichten
+            ...session.conversation_history.slice(-10) // Behoud laatste 10 berichten
         ];
 
         const response = await axios.post("https://api.openai.com/v1/chat/completions", {
@@ -91,8 +122,7 @@ app.post("/api/chat", async (req, res) => {
             }
         });
 
-        const botResponse = response.data.choices?.[0]?.message?.content || 
-            "Ik ben er om je te helpen. Kun je me iets meer vertellen over wat je nodig hebt?";
+        const botResponse = response.data.choices?.[0]?.message?.content || "Kun je dit iets anders formuleren?";
 
         session.conversation_history.push({ role: "bot", content: botResponse });
 
