@@ -38,16 +38,16 @@ app.post("/api/chat", async (req, res) => {
         let dynamicIntro = "";
         switch (session.focus_area) {
             case "fysiek":
-                dynamicIntro = "We gaan aan de slag met jouw fysieke gezondheid. Wat ervaar je precies?";
+                dynamicIntro = "Ik begrijp dat fysieke klachten een grote impact kunnen hebben. Kun je me meer vertellen over wat je ervaart?";
                 break;
             case "mentaal":
-                dynamicIntro = "Je mentale kracht en helderheid staan centraal. Wat speelt er op dit moment?";
+                dynamicIntro = "Mentale uitdagingen kunnen zwaar zijn. Wat is op dit moment je grootste mentale obstakel?";
                 break;
             case "spiritueel":
-                dynamicIntro = "Je spirituele groei is belangrijk. Welke uitdaging ervaar je op dat gebied?";
+                dynamicIntro = "Spirituele balans is essentieel. Wat voelt op dit moment uit balans voor jou?";
                 break;
             default:
-                dynamicIntro = "Wat speelt er op dit moment in jouw leven? Ik help je verder.";
+                dynamicIntro = "Ik hoor je en wil je helpen. Wat speelt er op dit moment?";
                 break;
         }
 
@@ -63,18 +63,20 @@ app.post("/api/chat", async (req, res) => {
                 Je begeleidt hen stap voor stap op hun tempo naar de juiste oplossing zonder pushen.
                 
                 🧠 **Gespreksflow & Structuur:**
-                1️⃣ **Empathische introductie & probleemverkenning:** "${dynamicIntro}"
-                2️⃣ **Verdieping op fysiek, mentaal en spiritueel vlak:** Stel de juiste vragen per onderwerp.
-                3️⃣ **Bewustwording en doorbraakvragen:** "Als je écht eerlijk bent, wat weet je al lang maar blijf je vermijden?"
-                4️⃣ **Eerste actie & natuurlijke overgang naar de juiste oplossing:** Geen pusherige verkoop, maar subtiele uitnodiging.
-                5️⃣ **Concrete oplossingen:** Afhankelijk van de situatie introduceer je het juiste MB-programma:
-                   - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.
-                   - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.
-                   - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.
-                   - **Elite Transformation** → High-end coaching voor maximale transformatie.
-                   - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.
-                6️⃣ **Actie en commitment:** "Wat zou er gebeuren als je nu écht actie onderneemt?"
-                7️⃣ **Optionele vervolgstap:** "Wil je een gestructureerd pad om dit op te lossen?" 
+                1️⃣ **Empathische erkenning & gerichte vraag:** "${dynamicIntro}"
+                2️⃣ **Verdieping op fysiek, mentaal en spiritueel vlak:** Stel slechts één relevante vraag per antwoord.
+                3️⃣ **Bewustwording en doorbraak:** Stel een reflecterende vraag gebaseerd op het gesprek.
+                4️⃣ **Actiegerichtheid:** Introduceer een praktische stap, niet meerdere tegelijk.
+                5️⃣ **Specifieke oplossing per behoefte:** Introduceer maximaal één programma of advies tegelijk.
+                6️⃣ **Toewijding en commitment:** Vraag concreet naar de bereidheid om iets te veranderen.
+                7️⃣ **Optionele vervolgstap:** "Wil je verder begeleiding hierin?"
+                
+                📌 **Beschikbare Programma's:**
+                - **Master Jouw Gezondheid** → Fysieke klachten & vitaliteit verbeteren.
+                - **Be Your Best Self** → Mentale kracht, zelfdiscipline & groei.
+                - **Verlicht Je Depressie** → Emotionele balans & mentale helderheid.
+                - **Elite Transformation** → High-end coaching voor maximale transformatie.
+                - **Beschermengelen Kaartendeck** → Spirituele reflectie & dieper inzicht.
                 
                 🔗 **Automatisering & Conversie:**
                 ✅ **Mailblue** → Start automatische e-mailflows na leadgeneratie.
@@ -82,7 +84,7 @@ app.post("/api/chat", async (req, res) => {
                 ✅ **Calendly** → Direct afspraken inplannen voor coaching.
                 ✅ **Huddle/Plug&Pay** → Automatische aankoop & toegang tot cursussen.
                 
-                Jij reageert altijd dynamisch en stemt je antwoord af op de gebruiker.`
+                Jij reageert altijd dynamisch, erkent de situatie en stelt slechts één gerichte vraag per stap.`
             },
             ...session.conversation_history // Voeg alle vorige berichten toe voor context
         ];
