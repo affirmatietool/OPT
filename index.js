@@ -8,39 +8,83 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const DATABASE_URL = "https://raw.githubusercontent.com/affirmatietool/OPT/refs/heads/main/MBFullDatabase_Final.json";
+const DATABASE_URL = "https://raw.githubusercontent.com/affirmatietool/OPT/main/MBFullDatabase_Final.json";
 
 let mbDatabase = {};
 
-// **Database laden**
+// **Database laden met fallback naar fetch als axios faalt**
 async function loadDatabase() {
     try {
-        const response = await axios.get(DATABASE_URL);
-        if (response.status !== 200) throw new Error("Fout bij ophalen database.");
+        console.log("📡 Ophalen van database vanaf:", DATABASE_URL);
+        let response;
+        
+        try {
+            response = await axios.get(DATABASE_URL);
+        } catch (axiosError) {
+            console.warn("⚠️ Axios faalde, proberen met fetch...");
+            response = await fetch(DATABASE_URL);
+            response = {
+                status: response.status,
+                data: await response.json()
+            };
+        }
+
+        if (response.status !== 200) throw new Error(`Fout bij ophalen database: HTTP ${response.status}`);
+
         mbDatabase = response.data;
+
+        if (!mbDatabase || typeof mbDatabase !== "object" || Object.keys(mbDatabase).length === 0) {
+            throw new Error("De database is leeg of heeft een verkeerd formaat.");
+        }
+
+        console.log(`✅ Database geladen met ${Object.keys(mbDatabase).length} onderwerpen.`);
+        console.log("🔍 Database preview:", Object.keys(mbDatabase).slice(0, 5)); // Toon eerste 5 onderwerpen
+
     } catch (error) {
         console.error("❌ Database laadfout:", error.message);
         mbDatabase = {};
     }
 }
+
+// **Laad database direct bij het starten**
 loadDatabase();
 
 // **API Endpoint**
 app.post("/api/chat", async (req, res) => {
-    const { message } = req.body;
-    if (!message) return res.status(400).json({ error: "Bericht is verplicht." });
+    try {
+        const { message } = req.body;
+        if (!message) return res.status(400).json({ error: "Bericht is verplicht." });
 
-    if (!mbDatabase || Object.keys(mbDatabase).length === 0) {
-        await loadDatabase();
-        return res.json({ response: "Fout!" });
+        if (!mbDatabase || Object.keys(mbDatabase).length === 0) {
+            console.log("⚠️ Database is nog leeg, opnieuw laden...");
+            await loadDatabase();
+            if (!mbDatabase || Object.keys(mbDatabase).length === 0) {
+                return res.json({ response: "Mijn kennis is nog niet beschikbaar. Probeer het later opnieuw." });
+            }
+        }
+
+        console.log("🔎 Gebruikersvraag:", message);
+
+        // **Zoek een match in de database**
+        let matchedTopic = Object.keys(mbDatabase).find(topic =>
+            message.toLowerCase().includes(topic.toLowerCase())
+        );
+
+        let responseText = "Ik heb daar geen informatie over.";
+
+        if (matchedTopic) {
+            console.log(`✅ Match gevonden: ${matchedTopic}`);
+            responseText = mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 500);
+        } else {
+            console.log("❌ Geen match gevonden in database.");
+        }
+
+        res.json({ response: responseText });
+    } catch (error) {
+        console.error("❌ Fout bij API-aanroep:", error.message);
+        res.status(500).json({ error: `Er ging iets mis: ${error.message}` });
     }
-
-    let matchedTopic = Object.keys(mbDatabase).find(topic =>
-        message.toLowerCase().includes(topic.toLowerCase())
-    );
-
-    res.json({ response: matchedTopic ? mbDatabase[matchedTopic]["volledige_inhoud"].substring(0, 500) : "Ik heb daar geen informatie over." });
 });
 
-// **Server starten**
+// **Start de server**
 app.listen(PORT, () => console.log(`🚀 Server draait op poort ${PORT}`));
