@@ -4,7 +4,15 @@
     { "src": "index.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/chat", "dest": "index.js" },
-    { "src": "/api/getMBContent", "dest": "index.js" }
-  ]
+    { "src": "/api/chat", "dest": "index.js" }
+  ],
+  "env": {
+    "OPENAI_API_KEY": "@openai_api_key"
+  },
+  "functions": {
+    "index.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
 }
