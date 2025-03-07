@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const DATABASE_URL = "https://raw.githubusercontent.com/affirmatietool/OPT/main/MBFullDatabase_Final.json";
+const DATABASE_URL = "https://raw.githubusercontent.com/affirmatietool/OPT/refs/heads/main/MBFullDatabase_Final.json";
 
 let mbDatabase = {};
 
