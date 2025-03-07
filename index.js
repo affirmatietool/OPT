@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // **GitHub-raw link naar MBFullDatabase_Final.json**
-const DATABASE_URL = 'https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO/main/MBFullDatabase_Final.json';
+const DATABASE_URL = 'https://raw.githubusercontent.com/affirmatietool/OPT/MBFullDatabase_Final.json';
 
 let mbDatabase = {};
 
